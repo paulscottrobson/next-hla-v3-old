@@ -11,13 +11,12 @@
 
 from errors import *
 from streams import *
-import os,re
 
 # ***************************************************************************************
 #									Element parser
 # ***************************************************************************************
 
-class ElementParser(object):
+class TextParser(object):
 	def __init__(self,stream):
 		self.stream = stream
 		self.elementQueue = []
@@ -87,7 +86,7 @@ class ElementParser(object):
 				raise AssemblerException("")
 			return str(ord(char))										# we convert it to an integer
 		return ch	
-
+		
 	#
 	#		Put the next element back
 	#
@@ -105,13 +104,13 @@ if __name__ == "__main__":
 		$7FFE
 		locvar:test + 4 ;
 		"hello" 123 var.ident_1 >+< 'x' // comment
-		"world" $2A
+		"world" $2A [42]
 	
 	""".split("\n"))
 
 	#tas = FileStream("errors.py")
 
-	pars = ElementParser(tas)
+	pars = TextParser(tas)
 	c = pars.get()
 	while c != "":
 		print(c)
