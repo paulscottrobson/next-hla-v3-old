@@ -20,7 +20,7 @@ class DemoCodeGenerator(object):
 		self.addr = 0x1000						# code space
 		self.memoryAddr = 0x3000 				# uninitialised data
 		self.opNames = {}
-		for op in "+add;-sub;*mult;/div;%mod;&and;|or;^xor;>grt;=equ;<less;#neq".split(";"):
+		for op in "+add;-sub;*mult;/div;%mod;&and;|or;^xor".split(";"):
 			self.opNames[op[0]] = op[1:]
 		self.jumpTypes = { "":"jmp","#":"jnz","=":"jz","+":"jpe","-":"jmi" }
 	#
@@ -46,16 +46,16 @@ class DemoCodeGenerator(object):
 	#
 	#		Load Accumulator with constant or term.
 	#
-	def _loadARegister(self,term):
+	def loadARegister(self,term):
 		if term[0]:
-			print("${0:06x} : ldr   a,[${1:04x}]".format(self.addr,term[1]))
+			print("${0:06x} : ldr   a,(${1:04x})".format(self.addr,term[1]))
 		else:
 			print("${0:06x} : ldr   a,#${1:04x}".format(self.addr,term[1]))
 		self.addr += 1
 	#
 	#		Perform a binary operation with a constant/term on the accumulator.
 	#
-	def _binaryOperation(self,operator,term):
+	def binaryOperation(self,operator,term):
 		if operator == "!" or operator == "?":							# indirect, we do add then read
 			self.binaryOperation("+",term)								# add will optimise a bit
 			print("${0:06x} : ldr.{1} a,[a]".format(self.addr,"w" if operator == "!" else "b"))
@@ -63,32 +63,32 @@ class DemoCodeGenerator(object):
 			return
 		operator = self.opNames[operator]								# convert op to opcode name
 		if term[0]:
-			print("${0:06x} : {1:4}  a,[${2:04x}]".format(self.addr,operator,term[1]))
+			print("${0:06x} : {1:4}  a,(${2:04x})".format(self.addr,operator,term[1]))
 		else:
 			print("${0:06x} : {1:4}  a,#${2:04x}".format(self.addr,operator,term[1]))
 		self.addr += 1
 	#
 	#		Save A at the address given
 	#
-	def _saveDirect(self,address):
-		print("${0:06x} : str   a,[${1:04x}]".format(self.addr,address))
+	def saveDirect(self,address):
+		print("${0:06x} : str   a,(${1:04x})".format(self.addr,address))
 		self.addr += 1
 	#
-	#		Save A indirect through X
+	#		Save temp register indirect through A, byte or word
 	#
-	def _saveIndirect(self,isWord):
-		print("${0:06x} : str.{1} a,[x]".format(self.addr,"w" if isWord else "b"))
+	def saveTempIndirect(self,isWord):
+		print("${0:06x} : str{1}  b,[a]".format(self.addr," " if isWord else "b"))
 		self.addr += 1
 	#
-	#		Copy A to the Index register, A value unknown after this.	
+	#		Copy A to the temp register, A value unknown after this.	
 	#
-	def _copyToIndex(self):
-		print("${0:06x} : tax".format(self.addr))
+	def copyToTemp(self):
+		print("${0:06x} : tab".format(self.addr))
 		self.addr += 1
 	#
 	#		Compile a call to a procedure
 	#
-	def _compileCall(self,address):
+	def compileCall(self,address):
 		print("${0:06x} : call  ${1:06x}".format(self.addr,address))
 		self.addr += 1
 	#
