@@ -3,7 +3,7 @@
 #
 #		Name : 		streams.py
 #		Author :	Paul Robson (paul@robsons.org.uk)
-#		Date : 		16th December 2018
+#		Date : 		17th December 2018
 #		Purpose :	Stream input classes
 #
 # ***************************************************************************************

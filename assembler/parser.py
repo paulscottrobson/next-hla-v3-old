@@ -1,9 +1,9 @@
 # ***************************************************************************************
 # ***************************************************************************************
 #
-#		Name : 		elements.py
+#		Name : 		parser.py
 #		Author :	Paul Robson (paul@robsons.org.uk)
-#		Date : 		16th December 2018
+#		Date : 		17th December 2018
 #		Purpose :	Element parsing class
 #
 # ***************************************************************************************
@@ -30,8 +30,8 @@ class ElementParser(object):
 			self.elementQueue = self.elementQueue[1:]
 			return element
 		ch = self.stream.get().lower()									# Get first character
-		if ch == " ":													# skip over spaces using recursion
-			return self.get()
+		while ch == " ":												# Skip over spaces.
+			ch = self.get()
 		#
 		#		Quoted string
 		#
@@ -48,17 +48,17 @@ class ElementParser(object):
 		#		Integer
 		#
 		if ch >= '0' and ch <= '9':										# decimal integer
-			n = int(ch,10)												# rip and convert
+			number = ch													# rip and convert
 			ch = self.stream.get()
 			while ch >= "0" and ch <= "9":
-				n = (n * 10 + int(ch,10)) & 0xFFFF
+				number = number + ch
 				ch = self.stream.get()
 			self.stream.put(ch)
-			return str(n)
+			return number
 		#
 		#		Hex Integer
 		#
-		if ch == '$':													# hexadecimal integer
+		if ch == '$':													# hexadecimal integer (converted to decimal)
 			word = ""
 			ch = self.stream.get().lower()
 			while (ch >= '0' and ch <= '9') or (ch >= 'a') and (ch <= 'f'):
@@ -78,9 +78,9 @@ class ElementParser(object):
 			self.stream.put(ch)											# put back the unknown
 			return ident
 		#
-		#		Quoted string
+		#		Quoted single character
 		#
-		if ch == "'":													# single character
+		if ch == "'":													# single character (converted to decimal)
 			char = self.stream.get()
 			ch = self.stream.get()
 			if ch != "'":

@@ -3,7 +3,7 @@
 #
 #		Name : 		identifiers.py
 #		Author :	Paul Robson (paul@robsons.org.uk)
-#		Date : 		16th December 2018
+#		Date : 		17th December 2018
 #		Purpose :	Identifier classes
 #
 # ***************************************************************************************
@@ -53,11 +53,6 @@ class AddressIdentifier(Identifier):
 # ***************************************************************************************
 
 class VariableIdentifier(AddressIdentifier):
-	def __init__(self,name,value,dataType = None,isGlobal = True):
-		AddressIdentifier.__init__(self,name,value,isGlobal)
-		self.varType = dataType
-	def getVariableType(self):
-		return self.varType
 	def getTypeName(self):
 		return "VariableIdentifier"
 

@@ -3,7 +3,7 @@
 #
 #		Name : 		dictionary.py
 #		Author :	Paul Robson (paul@robsons.org.uk)
-#		Date : 		16th December 2018
+#		Date : 		17th December 2018
 #		Purpose :	Dictionary Class
 #
 # ***************************************************************************************
@@ -44,6 +44,15 @@ class Dictionary(object):
 	def purgeLocals(self):
 		self.locals = {}
 	#
+	#	Purge at end of module ; all locals and any identifier beginning with an underscore
+	#
+	def purgeEndModule(self):
+		self.purgeLocals()
+		globals = self.globals
+		self.globals = {}
+		for key in [x for x in globals.keys() if x[0] != '_']:
+			self.globals[key] = globals[key]
+	#
 	#	Convert dictionary to text to print
 	#
 	def toString(self):
@@ -74,4 +83,7 @@ if __name__ == "__main__":
 	print(td.toString())
 	print("1-----------------------------------------")
 	td.purgeLocals()
+	print(td.toString())
+	print("2-----------------------------------------")
+	td.purgeEndModule()
 	print(td.toString())
