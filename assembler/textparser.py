@@ -85,6 +85,14 @@ class TextParser(object):
 			if ch != "'":
 				raise AssemblerException("")
 			return str(ord(char))										# we convert it to an integer
+		#
+		#		Special case of '->' mapped onto >
+		#
+		if ch == "-":
+			ch = self.stream.get()
+			if ch != ">":
+				self.stream.put(ch)
+				ch = "-"
 		return ch	
 		
 	#

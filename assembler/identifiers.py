@@ -28,7 +28,7 @@ class Identifier(object):
 	#
 	def toString(self):
 		return "{0} @ ${1:06x} '{3}' {2}".format(self.getName(),self.getValue(),	\
-							"global" if self.isGlobal else "local",self.getTypeName())
+							"global" if self.isGlobalIdentifier else "local",self.getTypeName())
 
 # ***************************************************************************************
 #					Identifier representing a constant value

@@ -1,9 +1,9 @@
 # ***************************************************************************************
 # ***************************************************************************************
 #
-#		Name : 		compiler.py
+#		Name : 		assembler.py
 #		Author :	Paul Robson (paul@robsons.org.uk)
-#		Date : 		17th December 2018
+#		Date : 		19th December 2018
 #		Purpose :	Extract a term from a stream
 #
 # ***************************************************************************************
@@ -17,42 +17,62 @@ from democodegen import *
 from term import *
 
 # ***************************************************************************************
-#									Main Compiler
+#									Main assembler
 # ***************************************************************************************
 
-class Compiler(object):
+class Assembler(object):
 	def __init__(self,dictionary,codeGenerator):
 		self.dictionary = dictionary
 		self.codeGenerator = codeGenerator
 	#
 	#		New compilation
 	#
-	def compileSource(self,parser):
+	def assembleSource(self,parser):
 		self.parser = parser
 		self.termExtractor = TermExtractor(parser,self.codeGenerator,self.dictionary)
-		if self.compile() != "":
+		if self.assemble() != "":
 			raise AssemblerException("Syntax Error")
 	#
-	#		Compile a full parser source.
+	#		assemble a full parser source.
 	#
-	def compile(self):
+	def assemble(self):
 		while True:
 			print("==============================")
-			error = self.compileInstruction()
+			error = self.assembleInstruction()
 			if error is not None:
 				return error
 	#
-	#		Compile a single item.
+	#		assemble a single item.
 	#
-	def compileInstruction(self):
+	def assembleInstruction(self):
 		nextItem = self.parser.get()									# get next item
 		ident = self.dictionary.find(nextItem) 							# look up in dictionary.
 		#
+		#		Code Group.
+		#
+		if nextItem == "{":												# found a {
+			endGroup = self.assemble()									# assemble, should match a }
+			if endGroup != "}":
+				raise AssemblerException("Missing }")
+			return None
+		#
 		# 		Structures
 		#
-
+		if nextItem == "for":
+			self.forLoop()
+			return None
 		#
 		# 		Global/Local variable definitions
+		#
+		if nextItem == "global" or nextItem == "local":
+			varName = self.parser.get()
+			if varName == "" or ((varName[0] < 'a' or varName[0] > 'z') and varName[0] != '_'):
+				raise AssemblerException("Bad variable name")
+			address = self.codeGenerator.allocate()
+			self.dictionary.add(VariableIdentifier(varName,address,nextItem == "global"))
+			return None
+		#
+		#		Procedure definition
 		#
 
 		#
@@ -113,24 +133,41 @@ class Compiler(object):
 		paramCount = procIdent.getParameterCount()						# how many parameters ?
 		paramAddress = procIdent.getParameterBaseAddress()				# where do they go ?
 		while paramCount > 0:
-			endChar = self.compile() 	
+			endChar = self.assemble() 	
 			if endChar != (")" if paramCount == 1 else ","):			# should finish with , or )
 				raise AssemblerException("Badly formed parameters")
 			self.codeGenerator.saveDirect(paramAddress) 				# save whatever it was.
 			paramCount -= 1 											# one fewer parameter.
 			paramAddress += 2 
-		self.codeGenerator.compileCall(procIdent.getValue())
+		self.codeGenerator.callProcedure(procIdent.getValue())			# compile procedure call.
+	#
+	#		Handle a for loop
+	#
+	def forLoop(self):
+		self.parser.expect("(")											# ( opening the loop count
+		endChar = self.assemble()										# expression to ) closing it
+		if endChar != ")":
+			raise AssemblerException("Missing ) in for")
+		ixVar = self.dictionary.find("index")							# Look for a variable called index
+		loop = self.codeGenerator.forTopCode(ixVar) 					# top of loop
+		self.assembleInstruction() 										# body of loop
+		self.codeGenerator.forBottomCode(loop) 							# bottom of loop
 
 if __name__ == "__main__":
 	tas = TextArrayStream("""
-		locvar+5>locvar
+		locvar+5->locvar
 		42+locvar>glbvar?2
 		locvar!6+4
 		locvar!glbvar+locvar?2 
-		hello(locvar,glbvar?13,42)
+		hello(locvar,glbvar?13,42)>locvar
 		const1
+		local n1 global n2
+		n1+n2>n2>n1
+		local index
+		for (42) { n1+1>n1 }
 	""".split("\n"))
 
 	p = TextParser(tas)
-	cm = Compiler(TestDictionary(),DemoCodeGenerator())
-	cm.compileSource(p)
+	cm = Assembler(TestDictionary(),DemoCodeGenerator())
+	cm.assembleSource(p)
+	print(cm.dictionary.toString())

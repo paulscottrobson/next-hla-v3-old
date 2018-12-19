@@ -31,10 +31,11 @@ class DemoCodeGenerator(object):
 	#
 	#		Allocate memory for a variable.
 	#
-	def allocate(self,size):
+	def allocate(self,count = 1):
 		address = self.memoryAddr
-		print("${0:06x} : dw    0".format(address))	
-		self.memoryAddr += 2
+		for i in range(0,count):
+			print("${0:06x} : dw    0".format(self.memoryAddr))	
+			self.memoryAddr += 2
 		return address
 	#
 	#		Place an ASCIIZ string constant ... somewhere .... return its address
@@ -89,16 +90,16 @@ class DemoCodeGenerator(object):
 		print("${0:06x} : tab".format(self.addr))
 		self.addr += 1
 	#
-	#		Compile a call to a procedure
+	#		Compile a call to a procedure (call should protect 'A')
 	#
-	def compileCall(self,address):
+	def callProcedure(self,address):
 		print("${0:06x} : call  ${1:06x}".format(self.addr,address))
 		self.addr += 1
 	#
 	#		Compile a jump with the given condition ( "", "=", "#", "+" "-""). The
 	#		target address is not known yet.
 	#
-	def _compileJump(self,condition):
+	def compileJump(self,condition):
 		assert condition in self.jumpTypes
 		print("${0:06x} : {1:3}   ?????".format(self.addr,self.jumpTypes[condition]))
 		jumpAddr = self.addr
@@ -107,23 +108,23 @@ class DemoCodeGenerator(object):
 	#
 	#		Patch a jump given its base addres
 	#
-	def _patchJump(self,jumpAddr,target):
+	def patchJump(self,jumpAddr,target):
 		print("${0:06x} : (Set target to ${1:06x})".format(jumpAddr,target))
 	#
 	#		Compile the top of a for loop.
 	#
-	def _forTopCode(self,indexAddress):
+	def forTopCode(self,indexVar):
 		loop = self.getAddress()
 		print("${0:06x} : dec   a".format(self.addr))					# decrement count
 		print("${0:06x} : push  a".format(self.addr+1))					# push on stack
 		self.addr += 2
-		if indexAddress is not None:									# if index exists put it there
-			self.saveDirect(indexAddress)
+		if indexVar is not None:										# if index exists put it there
+			self.saveDirect(indexVar.getValue())
 		return loop
 	#
 	#		Compile the bottom of a for loop
 	#
-	def _forBottomCode(self,loopAddress):
+	def forBottomCode(self,loopAddress):
 		print("${0:06x} : pop   a".format(self.addr))					# pop off stack, jump if not done
 		print("${0:06x} : jnz   ${1:06x}".format(self.addr+1,loopAddress))
 		self.addr += 2
