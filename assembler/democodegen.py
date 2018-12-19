@@ -96,6 +96,12 @@ class DemoCodeGenerator(object):
 		print("${0:06x} : call  ${1:06x}".format(self.addr,address))
 		self.addr += 1
 	#
+	#		Return from procedure (should protect A)
+	#
+	def returnProcedure(self):
+		print("${0:06x} : ret".format(self.addr))
+		self.addr += 1
+	#
 	#		Compile a jump with the given condition ( "", "=", "#", "+" "-""). The
 	#		target address is not known yet.
 	#

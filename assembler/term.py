@@ -52,7 +52,7 @@ class TermExtractor(object):
 		#
 		#		Identifier.
 		#
-		if element[0] >= 'a' and element[0] <= 'z':
+		if (element[0] >= 'a' and element[0] <= 'z') or element[0] == "_":
 			dEntry = self.dictionary.find(element)
 			if dEntry is None:
 				raise AssemblerException("Unknown identifier "+element)

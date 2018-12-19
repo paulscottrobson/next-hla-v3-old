@@ -32,6 +32,7 @@ class Assembler(object):
 		self.termExtractor = TermExtractor(parser,self.codeGenerator,self.dictionary)
 		if self.assemble() != "":
 			raise AssemblerException("Syntax Error")
+		self.dictionary.purgeEndModule()
 	#
 	#		assemble a full parser source.
 	#
@@ -58,15 +59,24 @@ class Assembler(object):
 		#
 		# 		Structures
 		#
-		if nextItem == "for":
+		if nextItem == "for":											# execute code x times
 			self.forLoop()
+			return None
+		if nextItem == "if" or nextItem == "while":						# if/while are similar
+			self.ifWhile(nextItem == "while")
+			return None
+		#
+		#		Procedure definition
+		#
+		if nextItem == "proc":											# proc definition.
+			self.defineProcedure()
 			return None
 		#
 		# 		Global/Local variable definitions
 		#
 		if nextItem == "global" or nextItem == "local":
 			varName = self.parser.get()
-			if varName == "" or ((varName[0] < 'a' or varName[0] > 'z') and varName[0] != '_'):
+			if not self.isIdentifier(varName):
 				raise AssemblerException("Bad variable name")
 			address = self.codeGenerator.allocate()
 			self.dictionary.add(VariableIdentifier(varName,address,nextItem == "global"))
@@ -139,6 +149,9 @@ class Assembler(object):
 			self.codeGenerator.saveDirect(paramAddress) 				# save whatever it was.
 			paramCount -= 1 											# one fewer parameter.
 			paramAddress += 2 
+			if paramCount == 0:											# put ) back on last
+				self.parser.put(")")
+		self.parser.expect(")")
 		self.codeGenerator.callProcedure(procIdent.getValue())			# compile procedure call.
 	#
 	#		Handle a for loop
@@ -152,6 +165,64 @@ class Assembler(object):
 		loop = self.codeGenerator.forTopCode(ixVar) 					# top of loop
 		self.assembleInstruction() 										# body of loop
 		self.codeGenerator.forBottomCode(loop) 							# bottom of loop
+	#
+	#		Handle if and while. Same code, but while has a jump back to the test at the bottom :)	
+	#
+	def ifWhile(self,isWhile):
+		whileJump = self.codeGenerator.getAddress()						# remember loop for while.
+		self.parser.expect("(")											# ( opening the test
+		endChar = self.assemble()										# expression to # < = closing it.
+		if endChar == ")":												# default test (#0)
+			endChar = "="												# so fail if equal zero.
+		else:
+			self.parser.expect("0")
+			self.parser.expect(")")
+			n = "=<#".find(endChar) 									# must be one of these =0, <0, #0
+			if n < 0:
+				raise AssemblerException("Bad condition")
+			endChar = "#+="[n]											# reverse it so this is fail test.
+		testAddress = self.codeGenerator.compileJump(endChar) 			# compile Jump out if fail.
+		self.assembleInstruction() 										# body of code to repeat or skip
+		if isWhile:
+			loopBackJump = self.codeGenerator.compileJump("")
+			self.codeGenerator.patchJump(loopBackJump,whileJump)
+																		# jump to here if fail.
+		self.codeGenerator.patchJump(testAddress,self.codeGenerator.getAddress())
+	#
+	#		Check if something is an identifier
+	#
+	def isIdentifier(self,s):
+		if s == "":
+			return False
+		return (s[0] >= 'a' and s[0] <= 'z') or s[0] == '_'
+	#
+	#		Define a procedure
+	#
+	def defineProcedure(self):
+		procName = self.parser.get()									# Get and check name
+		if not self.isIdentifier(procName):
+			raise AssemblerException("Bad procedure name")
+		paramList = []													# extract parameters
+		self.parser.expect("(")
+		nextElement = self.parser.get()
+		while nextElement != ")":
+			if not self.isIdentifier(nextElement):
+				raise AssemblerException("Bad parameter definitions")
+			paramList.append(nextElement)
+			nextElement = self.parser.get()
+			if nextElement == ",":
+				nextElement = self.parser.get()
+
+		baseAddr = self.codeGenerator.allocate(len(paramList))			# memory for parameters
+																		# define and add procedure
+		ident = ProcedureIdentifier(procName,self.codeGenerator.getAddress(),baseAddr,len(paramList))
+		self.dictionary.add(ident)
+		for i in range(0,len(paramList)):								# add parameters as locals
+			ident = VariableIdentifier(paramList[i],i*2+baseAddr,False)
+			self.dictionary.add(ident)
+		self.assembleInstruction()										# assemble body
+		self.codeGenerator.returnProcedure()							# return code.
+		self.dictionary.purgeLocals()									# throw the locals.
 
 if __name__ == "__main__":
 	tas = TextArrayStream("""
@@ -161,10 +232,15 @@ if __name__ == "__main__":
 		locvar!glbvar+locvar?2 
 		hello(locvar,glbvar?13,42)>locvar
 		const1
-		local n1 global n2
+		local n1 global n2 global _module
 		n1+n2>n2>n1
 		local index
+		_module > n1
 		for (42) { n1+1>n1 }
+		while (n1<0) { 1>n1 }
+		proc test(c1,c2) { 2>c1 3>c2 }
+
+		test(_module,42)
 	""".split("\n"))
 
 	p = TextParser(tas)

@@ -1,0 +1,21 @@
+Individual word groups e.g.
+
+"<text>"				string constant.
+[constant]				constant of some sort.
+<op>[variable/const/variable.const]	binary operation
+[variable] 				variable 
+[variable.const]		load indirect
+[variable!]				save variable
+[variable.const!] 		indirect store
+
+same structures as Color Forth. -if 0if if then / begin -until 0until until for/next
+
+
+[local:name]			define globals and locals
+[global:name]
+
+[name(var,const,var,const)]				procedure invocation
+[proc:name(var,const,var,const)] 		procedure definition
+
+
+

@@ -1,4 +1,6 @@
 TODO:
-	if/while
-	procedure definition
-	
+	- think about how the system is put together.
+	- variables allocated backwards from $8000 ?
+	- skeleton system based on imagelib ?
+
+		
