@@ -34,7 +34,7 @@ class TermExtractor(object):
 		#		Nothing
 		#
 		if element == "":
-			raise AssemblerException("Missing term")
+			return None
 		#
 		#		- [Constant term]
 		#
@@ -57,10 +57,12 @@ class TermExtractor(object):
 			if dEntry is None:
 				raise AssemblerException("Unknown identifier "+element)
 			if isinstance(dEntry,ConstantIdentifier):
-				return [False,dEntry.getValue()]
-			if isinstance(dEntry,VariableIdentifier):
-				return [True,dEntry.getValue()]
-			raise AssemblerException("Cannot use "+element+" in expression.")
+				term = [False,dEntry.getValue()]
+			elif isinstance(dEntry,VariableIdentifier):
+				term = [True,dEntry.getValue()]
+			else:
+				raise AssemblerException("Cannot use "+element+" in expression.")
+			return term
 		#
 		#		Identifier address.
 		#
@@ -79,27 +81,16 @@ class TermExtractor(object):
 			strAddr = self.codeGenerator.stringConstant(element[1:-1])
 			return [False,strAddr]
 		#
-		#		Memory allocation
-		#
-		if element[0] == '[':
-			size = self.extract()
-			if size[0]:
-				raise AssemblerException("Memory size must be constant")
-			if size[1] == 0 or size[1] >= 8192:
-				raise AssemblerException("Bad memory allocation")
-			if self.parser.get() != ']':
-				raise AssemblerException("Bad memory allocation syntax")
-			return [False,self.codeGenerator.allocate(size[1])]
-		#
 		#		Give up !
 		#
-		raise AssemblerException("Bad term "+element)
+		self.parser.put(element)
+		return None
 
 if __name__ == "__main__":
 	tas = TextArrayStream("""
 		$7FFE 65321 'x' -4 38
 		locvar glbvar const1 -const1
-		"hello world" [412] [3]
+		"hello world" locvar!3 glbvar!locvar
 		// String
 		// @identifier (var only)
 

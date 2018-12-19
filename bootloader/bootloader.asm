@@ -13,17 +13,18 @@
 FirstPage = 32 												; these are the pages for an 
 LastPage = 95 												; unexpanded ZXNext.
 
-		org 	$4000-27
-		db 		$3F
-		dw 		0,0,0,0,0,0,0,0,0,0,0
-		org 	$4000-4
-		dw 		$5AFE
-		db 		1
-		db 		7
+;		org 	$4000-27
+;		db 		$3F
+;		dw 		0,0,0,0,0,0,0,0,0,0,0
+;		org 	$4000-4
+;		dw 		$5AFE
+;		db 		1
+;		db 		7
+;
+;		org 	$5AFE
+;		dw 		$7F00	
 
-		org 	$5AFE
-		dw 		$7F00	
-
+		opt 	zxnextreg
 		org 	$7F00 							
 
 Start:	ld 		sp,Start-1 									; set up the stack.
@@ -150,3 +151,5 @@ ImageName:
 		org 	$FFFF
 		db 		0
 		
+		savesna	"bootloader.sna",Start
+

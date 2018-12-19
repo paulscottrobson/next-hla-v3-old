@@ -29,11 +29,12 @@ class DemoCodeGenerator(object):
 	def getAddress(self):
 		return self.addr
 	#
-	#		Allocate variable memory from non-initialised space.
+	#		Allocate memory for a variable.
 	#
 	def allocate(self,size):
 		address = self.memoryAddr
-		self.memoryAddr += size
+		print("${0:06x} : dw    0".format(address))	
+		self.memoryAddr += 2
 		return address
 	#
 	#		Place an ASCIIZ string constant ... somewhere .... return its address
@@ -64,9 +65,10 @@ class DemoCodeGenerator(object):
 		operator = self.opNames[operator]								# convert op to opcode name
 		if term[0]:
 			print("${0:06x} : {1:4}  a,(${2:04x})".format(self.addr,operator,term[1]))
+			self.addr += 1
 		else:
 			print("${0:06x} : {1:4}  a,#${2:04x}".format(self.addr,operator,term[1]))
-		self.addr += 1
+			self.addr += 1
 	#
 	#		Save A at the address given
 	#
@@ -74,11 +76,12 @@ class DemoCodeGenerator(object):
 		print("${0:06x} : str   a,(${1:04x})".format(self.addr,address))
 		self.addr += 1
 	#
-	#		Save temp register indirect through A, byte or word
+	#		Save temp register indirect through A, byte or word, and put temp back in A
 	#
 	def saveTempIndirect(self,isWord):
-		print("${0:06x} : str{1}  b,[a]".format(self.addr," " if isWord else "b"))
-		self.addr += 1
+		print("${0:06x} : str.{1} b,[a]".format(self.addr," " if isWord else "b"))
+		print("${0:06x} : tba".format(self.addr+1))	
+		self.addr += 2
 	#
 	#		Copy A to the temp register, A value unknown after this.	
 	#

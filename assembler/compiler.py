@@ -27,87 +27,110 @@ class Compiler(object):
 	#
 	#		New compilation
 	#
-	def compile(self,parser):
+	def compileSource(self,parser):
 		self.parser = parser
 		self.termExtractor = TermExtractor(parser,self.codeGenerator,self.dictionary)
-		self.compileSet("")
+		if self.compile() != "":
+			raise AssemblerException("Syntax Error")
 	#
-	#		Compile a single item
+	#		Compile a full parser source.
 	#
-	def compileSet(self,exitOn):
-		nextElement = self.parser.get()
-		while nextElement != "" and nextElement != exitOn:
-			#
-			#		Normal binary operators + - * / % & | ^ ! ?
-			#
-			if len(nextElement) == 1 and "+-*/&|^%?!".find(nextElement) >= 0:		
-				term = self.termExtractor.extract()									# get the term
-				self.codeGenerator.binaryOperation(nextElement,term)				# and do the operation.
-			#
-			#		Assignment binary operation.
-			#
-			elif nextElement == ">":												
-				self.assignment()
-			# TODO Structures
-			# TODO Variables
-			# TODO Definitions
-			# TODO Groups
-			#
-			#		Procedure
-			#
-			elif isinstance(self.dictionary.find(nextElement),ProcedureIdentifier):	
-				self.procedureInvoke(self.dictionary.find(nextElement))
-			else:																	# Not identified.
-				self.parser.put(nextElement)										# put it back
-				term = self.termExtractor.extract() 								# get a term
-				self.codeGenerator.loadARegister(term) 								# and load it in.
+	def compile(self):
+		while True:
+			print("==============================")
+			error = self.compileInstruction()
+			if error is not None:
+				return error
+	#
+	#		Compile a single item.
+	#
+	def compileInstruction(self):
+		nextItem = self.parser.get()									# get next item
+		ident = self.dictionary.find(nextItem) 							# look up in dictionary.
+		#
+		# 		Structures
+		#
 
-			nextElement = self.parser.get()
+		#
+		# 		Global/Local variable definitions
+		#
+
+		#
+		# 		Procedure call
+		#
+		if isinstance(ident,ProcedureIdentifier):
+			self.callProcedure(ident)
+			return None
+		#
+		# 		Binary operations
+		#
+		if len(nextItem) == 1 and "+-*/%&|^!?".find(nextItem) >= 0:
+			term = self.termExtractor.extract() 						# get the operand.
+			if term is None:
+				raise AssemblerException("Missing term")
+			self.codeGenerator.binaryOperation(nextItem,term)			# generate the code for it
+			return None
+		#
+		# 		Assignment
+		#
+		if nextItem == ">":
+			self.binaryAssignment()
+			return
+		#
+		# 		Is it a "Starter" Term - one that loads in a value.
+		#
+		self.parser.put(nextItem) 										# put it back
+		term = self.termExtractor.extract() 							# try and grab a term.
+		if term is not None:											# found one ?
+			self.codeGenerator.loadARegister(term) 						# generate code to load a term in.
+			return None 												# okay.
+		
+		return self.parser.get()
 	#
-	#		Assignment.
+	#		Do a binary assignment (>)
 	#
-	def assignment(self):
-		nextElement = self.parser.get()
-		if nextElement == "(":														# indirect read/write ?
-			termLeft = self.termExtractor.extract() 								# left side.
-			operator = self.parser.get() 											# get operator, must be ! or ?
-			if operator != "?" and operator != "!":
-				raise AssemblerException("Bad operator for indirect assignment")
-			termRight = self.termExtractor.extract() 								# right side.
-			self.parser.expect(")")													# closing bracket
-			self.codeGenerator.copyToTemp()	 										# copy the data to temp
-			self.codeGenerator.loadARegister(termLeft)								# build up the indirect address
-			self.codeGenerator.binaryOperation("+",termRight)
-			self.codeGenerator.saveTempIndirect(operator == "!") 					# and save via it.
-		else: 																		# direct read write
-			self.parser.put(nextElement)
-			term = self.termExtractor.extract()
-			if not term[0]:															# must write to an address
-				raise AssemblerException("Can only assign to an address")
-			self.codeGenerator.saveDirect(term[1]) 									# write code to do so.
+	def binaryAssignment(self):
+		term = self.termExtractor.extract() 							# where to save.
+		if not term[0]:
+			raise AssemblerException("Must assign to an address")
+		nextItem = self.parser.get() 									# see if followed by ! or ?
+		if nextItem == "?" or nextItem == "!":							# if so, it's an indirect save.
+			rTerm = self.termExtractor.extract()						# get following term
+			if rTerm is None:
+				raise AssemblerException("Bad assignment")
+			self.codeGenerator.copyToTemp() 							# save result
+			self.codeGenerator.loadARegister(term) 						# calculate the address
+			self.codeGenerator.binaryOperation("+",rTerm)
+			self.codeGenerator.saveTempIndirect(nextItem == "!") 		# and write there.
+		else:
+			self.codeGenerator.saveDirect(term[1]) 						# store to memory
+			self.parser.put(nextItem) 									# put last element back
 	#
-	#		Call a procedure
+	#		Call a procedure.
 	#
-	def procedureInvoke(self,procIdentifier):
-		self.parser.expect("(")
-		currentParameterAddress = procIdentifier.getParameterBaseAddress() 			# get base address and count
-		paramCount = procIdentifier.getParameterCount()
-		while paramCount != 0:														# until all done.
-			self.compileSet(")" if paramCount == 1 else ",") 						# compile until ) or , found
-			self.codeGenerator.saveDirect(currentParameterAddress) 					# save that code
-			currentParameterAddress += 2 											# next parameter
-			paramCount -= 1
-		self.codeGenerator.compileCall(procIdentifier.getValue())					# compile the actual call
+	def callProcedure(self,procIdent):
+		self.parser.expect("(")											# check open bracket.
+		paramCount = procIdent.getParameterCount()						# how many parameters ?
+		paramAddress = procIdent.getParameterBaseAddress()				# where do they go ?
+		while paramCount > 0:
+			endChar = self.compile() 	
+			if endChar != (")" if paramCount == 1 else ","):			# should finish with , or )
+				raise AssemblerException("Badly formed parameters")
+			self.codeGenerator.saveDirect(paramAddress) 				# save whatever it was.
+			paramCount -= 1 											# one fewer parameter.
+			paramAddress += 2 
+		self.codeGenerator.compileCall(procIdent.getValue())
 
 if __name__ == "__main__":
 	tas = TextArrayStream("""
-		locvar+const1-glbvar*42&'a'>locvar
-		const1>(locvar!4)
-		const1>(locvar?glbvar)
-		hello($101,$202,locvar+$303)
-		42 >locvar
+		locvar+5>locvar
+		42+locvar>glbvar?2
+		locvar!6+4
+		locvar!glbvar+locvar?2 
+		hello(locvar,glbvar?13,42)
+		const1
 	""".split("\n"))
 
 	p = TextParser(tas)
 	cm = Compiler(TestDictionary(),DemoCodeGenerator())
-	cm.compile(p)
+	cm.compileSource(p)
